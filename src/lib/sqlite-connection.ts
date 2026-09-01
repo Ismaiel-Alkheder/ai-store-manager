@@ -2,13 +2,28 @@ import {
     DatabaseSync,
 } from "node:sqlite";
 
+import {
+    mkdirSync,
+} from "node:fs";
+
 import path from "node:path";
 
 export const runtime = "nodejs";
 
-const databasePath = path.join(
+const dataDirectory = path.join(
     process.cwd(),
-    "data",
+    "data"
+);
+
+mkdirSync(
+    dataDirectory,
+    {
+        recursive: true,
+    }
+);
+
+const databasePath = path.join(
+    dataDirectory,
     "ai-store-manager.db"
 );
 
