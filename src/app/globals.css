@@ -1,0 +1,398 @@
+@import "tailwindcss";
+
+:root {
+  /* Core palette */
+  --asm-bg: #f7f9fc;
+  --asm-bg-top: #eef4ff;
+  --asm-surface: #ffffff;
+  --asm-surface-soft: #f8fafc;
+
+  --asm-text: #0f172a;
+  --asm-text-muted: #64748b;
+  --asm-border: #dbe3ee;
+  --asm-border-strong: #cbd5e1;
+
+  --asm-primary: #2563eb;
+  --asm-primary-dark: #1d4ed8;
+  --asm-primary-soft: #eff6ff;
+
+  --asm-success: #15803d;
+  --asm-success-soft: #f0fdf4;
+  --asm-success-border: #bbf7d0;
+
+  --asm-warning: #d97706;
+  --asm-warning-soft: #fffbeb;
+  --asm-warning-border: #fde68a;
+
+  --asm-danger: #dc2626;
+  --asm-danger-soft: #fef2f2;
+  --asm-danger-border: #fecaca;
+
+  --asm-info: #1e40af;
+  --asm-info-soft: #eff6ff;
+  --asm-info-border: #bfdbfe;
+
+  /* Layout */
+  --asm-radius-sm: 10px;
+  --asm-radius: 14px;
+  --asm-radius-lg: 18px;
+  --asm-radius-xl: 20px;
+
+  --asm-shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.05);
+  --asm-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  --asm-shadow-lg: 0 18px 42px rgba(15, 23, 42, 0.16);
+
+  /* Compatibility with Tailwind theme variables */
+  --background: var(--asm-bg);
+  --foreground: var(--asm-text);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--asm-bg);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    linear-gradient(180deg,
+      var(--asm-bg-top) 0px,
+      var(--asm-bg) 360px,
+      var(--asm-bg) 100%);
+  color: var(--asm-text);
+  font-family:
+    var(--font-geist-sans),
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+a {
+  color: inherit;
+}
+
+/* ---------------------------------------------------------
+   Shared AI Store Manager design system
+   Use these classes for new pages and during future refactors.
+   --------------------------------------------------------- */
+
+.asm-page {
+  width: min(1320px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 24px 0 56px;
+}
+
+.asm-hero {
+  padding: 26px 28px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--asm-radius-lg);
+  background:
+    linear-gradient(135deg,
+      #0f172a 0%,
+      #1e3a8a 58%,
+      #2563eb 100%);
+  color: #ffffff;
+  box-shadow: var(--asm-shadow-lg);
+}
+
+.asm-eyebrow {
+  margin: 0 0 6px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.asm-title {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 36px);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+.asm-subtitle {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 15px;
+}
+
+.asm-section-title {
+  margin: 34px 0 18px;
+  padding-left: 12px;
+  border-left: 4px solid var(--asm-primary);
+  color: var(--asm-text);
+  font-size: 21px;
+  line-height: 1.25;
+}
+
+.asm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+.asm-card {
+  border: 1px solid var(--asm-border);
+  border-radius: var(--asm-radius);
+  background: var(--asm-surface);
+  box-shadow: var(--asm-shadow);
+  padding: 18px;
+}
+
+.asm-card--interactive {
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    border-color 120ms ease;
+}
+
+.asm-card--interactive:hover {
+  transform: translateY(-1px);
+  border-color: var(--asm-border-strong);
+  box-shadow: 0 11px 28px rgba(15, 23, 42, 0.08);
+}
+
+.asm-label {
+  color: var(--asm-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.asm-value {
+  margin-top: 7px;
+  color: var(--asm-text);
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.asm-muted {
+  color: var(--asm-text-muted);
+}
+
+/* Buttons */
+.asm-btn {
+  appearance: none;
+  border: 1px solid var(--asm-primary-dark);
+  border-radius: var(--asm-radius-sm);
+  padding: 10px 14px;
+  background: var(--asm-primary);
+  color: #ffffff;
+  font-weight: 750;
+  line-height: 1.2;
+  box-shadow: 0 5px 14px rgba(37, 99, 235, 0.16);
+  transition:
+    transform 120ms ease,
+    opacity 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.asm-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.asm-btn:disabled {
+  opacity: 0.55;
+}
+
+.asm-btn--secondary {
+  border-color: var(--asm-border-strong);
+  background: var(--asm-surface);
+  color: #334155;
+  box-shadow: var(--asm-shadow-sm);
+}
+
+.asm-btn--success {
+  border-color: #166534;
+  background: var(--asm-success);
+  box-shadow: 0 5px 14px rgba(21, 128, 61, 0.16);
+}
+
+.asm-btn--warning {
+  border-color: #b45309;
+  background: var(--asm-warning);
+  box-shadow: 0 5px 14px rgba(217, 119, 6, 0.16);
+}
+
+.asm-btn--danger {
+  border-color: #b91c1c;
+  background: var(--asm-danger);
+  box-shadow: 0 5px 14px rgba(220, 38, 38, 0.16);
+}
+
+/* Status pills */
+.asm-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border: 1px solid var(--asm-border);
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: var(--asm-surface-soft);
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.asm-status--success {
+  border-color: var(--asm-success-border);
+  background: var(--asm-success-soft);
+  color: #166534;
+}
+
+.asm-status--warning {
+  border-color: var(--asm-warning-border);
+  background: var(--asm-warning-soft);
+  color: #92400e;
+}
+
+.asm-status--danger {
+  border-color: var(--asm-danger-border);
+  background: var(--asm-danger-soft);
+  color: #991b1b;
+}
+
+.asm-status--info {
+  border-color: var(--asm-info-border);
+  background: var(--asm-info-soft);
+  color: var(--asm-info);
+}
+
+/* Alerts */
+.asm-alert {
+  border: 1px solid var(--asm-border);
+  border-radius: 12px;
+  padding: 13px 15px;
+  background: var(--asm-surface);
+}
+
+.asm-alert--success {
+  border-color: var(--asm-success-border);
+  background: var(--asm-success-soft);
+  color: #166534;
+}
+
+.asm-alert--warning {
+  border-color: var(--asm-warning-border);
+  background: var(--asm-warning-soft);
+  color: #92400e;
+}
+
+.asm-alert--danger {
+  border-color: var(--asm-danger-border);
+  background: var(--asm-danger-soft);
+  color: #991b1b;
+}
+
+/* Form controls */
+.asm-input,
+.asm-select,
+.asm-textarea {
+  width: 100%;
+  border: 1px solid var(--asm-border-strong);
+  border-radius: var(--asm-radius-sm);
+  padding: 10px 12px;
+  background: #ffffff;
+  color: var(--asm-text);
+  outline: none;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.asm-input:focus,
+.asm-select:focus,
+.asm-textarea:focus {
+  border-color: var(--asm-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* Tables */
+.asm-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--asm-border);
+  border-radius: var(--asm-radius);
+  background: #ffffff;
+  box-shadow: var(--asm-shadow);
+}
+
+.asm-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.asm-table th,
+.asm-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #edf2f7;
+  text-align: left;
+  vertical-align: top;
+}
+
+.asm-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.asm-table tr:last-child td {
+  border-bottom: 0;
+}
+
+@media (max-width: 700px) {
+  .asm-page {
+    width: min(100% - 24px, 1320px);
+    padding-top: 16px;
+  }
+
+  .asm-hero {
+    padding: 22px 20px;
+  }
+
+  .asm-grid {
+    grid-template-columns: 1fr;
+  }
+}
