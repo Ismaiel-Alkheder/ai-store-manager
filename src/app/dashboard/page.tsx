@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import AdminAccountControls from "@/components/AdminAccountControls";
+import InventoryAlertsPanel from "@/components/InventoryAlertsPanel";
 
 type ProductVariant = {
     id?: string;
@@ -2464,75 +2465,9 @@ export default function DashboardPage() {
 
             {/* LOW INVENTORY */}
 
-            <h2
-                style={{
-                    marginTop: "45px",
-                }}
-            >
-                Low Inventory Alerts
-            </h2>
-
-            {openInventoryAlerts.length ===
-                0 ? (
-                <p>
-                    ✅ Inventory levels look
-                    good.
-                </p>
-            ) : (
-                openInventoryAlerts.map(
-                    (alert) => (
-                        <div
-                            key={alert.id}
-                            style={{
-                                padding: "20px",
-                                marginBottom:
-                                    "15px",
-                                border:
-                                    "2px solid #dbe3ee",
-                                borderRadius:
-                                    "12px",
-                            }}
-                        >
-                            <h3>
-                                ⚠️ Low Stock —{" "}
-                                {
-                                    alert.productTitle
-                                }
-                            </h3>
-
-                            <p>
-                                <strong>
-                                    Variant:
-                                </strong>{" "}
-                                {
-                                    alert.variantTitle
-                                }
-                            </p>
-
-                            <p>
-                                <strong>
-                                    SKU:
-                                </strong>{" "}
-                                {alert.sku}
-                            </p>
-
-                            <p>
-                                <strong>
-                                    Available:
-                                </strong>{" "}
-                                {alert.available}
-                            </p>
-
-                            <p>
-                                <strong>
-                                    Status:
-                                </strong>{" "}
-                                {alert.status}
-                            </p>
-                        </div>
-                    )
-                )
-            )}
+            <InventoryAlertsPanel
+                alerts={openInventoryAlerts}
+            />
 
             {/* RESTOCK TASKS */}
 
