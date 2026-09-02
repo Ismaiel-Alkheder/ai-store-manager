@@ -9,6 +9,88 @@ export const runtime = "nodejs";
 
 const AI_MODEL = "gpt-5.6-luna";
 
+type ProductInput = {
+    title?: string;
+    handle?: string;
+    status?: string;
+    publishedAt?: string | null;
+    tags?: string[];
+    vendor?: string;
+    productType?: string;
+    description?: string;
+    totalInventory?: number;
+    tracksInventory?: boolean;
+    variants?: {
+        nodes?: Array<{
+            title?: string;
+            sku?: string | null;
+            price?: string;
+            compareAtPrice?: string | null;
+            inventoryQuantity?: number;
+            inventoryPolicy?: string;
+        }>;
+    };
+};
+
+type OrderInput = {
+    name?: string;
+    createdAt?: string;
+    test?: boolean;
+    tags?: string[];
+    sourceName?: string | null;
+    displayFinancialStatus?: string;
+    displayFulfillmentStatus?: string;
+    totalPriceSet?: {
+        shopMoney?: {
+            amount?: string;
+            currencyCode?: string;
+        };
+    };
+    lineItems?: {
+        nodes?: Array<{
+            name?: string;
+            quantity?: number;
+        }>;
+    };
+};
+
+function getAnalyticsStartTime() {
+    const value =
+        process.env.ANALYTICS_START_DATE;
+
+    if (!value) {
+        throw new Error(
+            "ANALYTICS_START_DATE is missing."
+        );
+    }
+
+    const time = Date.parse(value);
+
+    if (!Number.isFinite(time)) {
+        throw new Error(
+            "ANALYTICS_START_DATE is invalid."
+        );
+    }
+
+    return time;
+}
+
+function hasTestTag(tags: string[] = []) {
+    const testTags = new Set([
+        "test",
+        "ai-test",
+        "ai_test",
+        "development",
+        "demo",
+    ]);
+
+    return tags.some(tag =>
+        testTags.has(
+            tag.trim().toLowerCase()
+        )
+    );
+}
+
 export async function POST(request: Request) {
     try {
         if (!(await hasAdminSession())) {
@@ -35,7 +117,8 @@ export async function POST(request: Request) {
             );
         }
 
-        const apiKey = process.env.OPENAI_API_KEY;
+        const apiKey =
+            process.env.OPENAI_API_KEY;
 
         if (!apiKey) {
             return NextResponse.json(
@@ -52,91 +135,144 @@ export async function POST(request: Request) {
         const body =
             await request.json();
 
-        const products =
+        const rawProducts:
+            ProductInput[] =
             Array.isArray(body?.products)
                 ? body.products
                 : [];
 
-        const orders =
+        const rawOrders:
+            OrderInput[] =
             Array.isArray(body?.orders)
                 ? body.orders
                 : [];
+
+        const analyticsStartTime =
+            getAnalyticsStartTime();
+
+        const products =
+            rawProducts.filter(product =>
+                product.status === "ACTIVE" &&
+                Boolean(product.publishedAt) &&
+                !hasTestTag(product.tags)
+            );
+
+        const orders =
+            rawOrders.filter(order => {
+                const createdTime =
+                    order.createdAt
+                        ? Date.parse(
+                            order.createdAt
+                        )
+                        : Number.NaN;
+
+                return (
+                    Number.isFinite(
+                        createdTime
+                    ) &&
+                    createdTime >=
+                        analyticsStartTime &&
+                    order.test !== true &&
+                    !hasTestTag(order.tags)
+                );
+            });
 
         const client = new OpenAI({
             apiKey,
         });
 
         const storeData = {
-            products: products.map(
-                (product: {
-                    title: string;
-                    variants?: {
-                        nodes?: {
-                            title?: string;
-                            price: string;
-                            inventoryQuantity: number;
-                        }[];
-                    };
-                }) => ({
-                    title:
-                        product.title,
+            scope: {
+                products:
+                    "ACTIVE_AND_PUBLISHED",
+                ordersSince:
+                    new Date(
+                        analyticsStartTime
+                    ).toISOString(),
+                testOrdersExcluded:
+                    true,
+            },
 
-                    variants:
-                        product.variants
-                            ?.nodes
-                            ?.map(
-                                (
-                                    variant
-                                ) => ({
-                                    title:
-                                        variant.title,
+            products: products.map(product => ({
+                title:
+                    product.title ||
+                    "Untitled product",
 
-                                    price:
-                                        variant.price,
+                handle:
+                    product.handle,
 
-                                    inventoryQuantity:
-                                        variant.inventoryQuantity,
-                                })
-                            ) || [],
-                })
-            ),
+                vendor:
+                    product.vendor,
 
-            orders: orders.map(
-                (order: {
-                    name: string;
-                    displayFinancialStatus: string;
-                    displayFulfillmentStatus: string;
-                    totalPriceSet: {
-                        shopMoney: {
-                            amount: string;
-                            currencyCode: string;
-                        };
-                    };
-                    lineItems?: {
-                        nodes: {
-                            name: string;
-                            quantity: number;
-                        }[];
-                    };
-                }) => ({
-                    name:
-                        order.name,
+                productType:
+                    product.productType,
 
-                    paymentStatus:
-                        order.displayFinancialStatus,
+                description:
+                    product.description,
 
-                    fulfillmentStatus:
-                        order.displayFulfillmentStatus,
+                tags:
+                    product.tags || [],
 
-                    total:
-                        order.totalPriceSet
-                            ?.shopMoney,
+                totalInventory:
+                    Number(
+                        product.totalInventory || 0
+                    ),
 
-                    items:
-                        order.lineItems
-                            ?.nodes || [],
-                })
-            ),
+                tracksInventory:
+                    Boolean(
+                        product.tracksInventory
+                    ),
+
+                variants:
+                    product.variants
+                        ?.nodes
+                        ?.map(variant => ({
+                            title:
+                                variant.title,
+
+                            sku:
+                                variant.sku,
+
+                            price:
+                                variant.price,
+
+                            compareAtPrice:
+                                variant.compareAtPrice,
+
+                            inventoryQuantity:
+                                Number(
+                                    variant.inventoryQuantity || 0
+                                ),
+
+                            inventoryPolicy:
+                                variant.inventoryPolicy,
+                        })) || [],
+            })),
+
+            orders: orders.map(order => ({
+                name:
+                    order.name,
+
+                createdAt:
+                    order.createdAt,
+
+                sourceName:
+                    order.sourceName,
+
+                paymentStatus:
+                    order.displayFinancialStatus,
+
+                fulfillmentStatus:
+                    order.displayFulfillmentStatus,
+
+                total:
+                    order.totalPriceSet
+                        ?.shopMoney,
+
+                items:
+                    order.lineItems
+                        ?.nodes || [],
+            })),
         };
 
         const response =
@@ -145,17 +281,19 @@ export async function POST(request: Request) {
                     AI_MODEL,
 
                 instructions: `
-أنت مدير متجر إلكتروني ذكي يساعد صاحب متجر Shopify.
+أنت مدير متجر إلكتروني ذكي يساعد صاحب متجر Shopify متخصصاً في الأدوات والألعاب التعليمية الذكية للأطفال من 6 إلى 12 سنة في السوق الأمريكي.
 
-حلل بيانات المتجر وأعط تقريراً مختصراً وواضحاً باللغة العربية.
+البيانات المرسلة إليك تقتصر على المنتجات النشطة والمنشورة، وعلى الطلبات الحقيقية منذ تاريخ بدء التحليلات، بعد استبعاد طلبات الاختبار.
 
-ركز على:
-1. الطلبات التي تحتاج إلى انتباه.
-2. الطلبات المدفوعة التي لم يتم تنفيذها.
-3. وضع المخزون.
-4. المنتجات التي تستحق المراجعة.
-5. أهم ثلاث توصيات لصاحب المتجر.
+اكتب تقريراً مختصراً وواضحاً باللغة العربية يركز على:
+1. ملخص صادق للمبيعات والطلبات. إذا لم توجد طلبات حقيقية، اذكر ذلك بوضوح ولا تستنتج أداءً تجارياً غير موجود.
+2. الطلبات المدفوعة التي تحتاج إلى تنفيذ.
+3. المخزون والمنتجات أو المتغيرات النافدة أو السالبة.
+4. جودة بيانات المنتجات: العناوين، الأسعار، الوصف، التصنيف، SKU، وسياسة المخزون.
+5. المنتجات التي تحتاج مراجعة سلامة أو خصوصية، خصوصاً المنتجات المغناطيسية والمتصلة بالإنترنت. لا تدّعِ تحققاً قانونياً غير موجود في البيانات.
+6. أهم ثلاث توصيات عملية مرتبة حسب الأولوية.
 
+لا تذكر منتجات أو طلبات غير موجودة في البيانات.
 لا تدّعي أنك نفذت أي إجراء.
 لا تغير الأسعار.
 لا تلغي الطلبات.
@@ -164,7 +302,7 @@ export async function POST(request: Request) {
       `,
 
                 input: `
-هذه بيانات متجر Shopify الحالية:
+هذه بيانات متجر Shopify الحالية بعد التنقية على الخادم:
 
 ${JSON.stringify(
                     storeData,
@@ -174,7 +312,7 @@ ${JSON.stringify(
       `,
 
                 max_output_tokens:
-                    600,
+                    900,
             });
 
         const analysis =
@@ -200,6 +338,25 @@ ${JSON.stringify(
             success: true,
             analysis,
             report,
+
+            dataQuality: {
+                productsReceived:
+                    rawProducts.length,
+
+                productsAnalyzed:
+                    products.length,
+
+                ordersReceived:
+                    rawOrders.length,
+
+                ordersAnalyzed:
+                    orders.length,
+
+                analyticsStartDate:
+                    new Date(
+                        analyticsStartTime
+                    ).toISOString(),
+            },
         });
     } catch (error) {
         console.error(

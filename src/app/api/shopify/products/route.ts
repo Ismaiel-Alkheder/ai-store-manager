@@ -36,6 +36,7 @@ async function getAccessToken(): Promise<string> {
                 client_id: clientId,
                 client_secret: clientSecret,
             }),
+            cache: "no-store",
         }
     );
 
@@ -99,20 +100,41 @@ export async function GET() {
             await getAccessToken();
 
         const query = `
-      query GetProducts {
-        products(first: 5) {
+      query GetPublishedProducts {
+        products(
+          first: 100
+          reverse: true
+          sortKey: UPDATED_AT
+          query: "status:active AND published_status:published"
+        ) {
           nodes {
             id
             title
             handle
-            variants(first: 10) {
+            status
+            tags
+            vendor
+            productType
+            publishedAt
+            totalInventory
+            tracksInventory
+            description(truncateAt: 1200)
+
+            variants(first: 100) {
               nodes {
                 id
                 title
+                sku
                 price
+                compareAtPrice
                 inventoryQuantity
+                inventoryPolicy
               }
             }
+          }
+
+          pageInfo {
+            hasNextPage
           }
         }
       }
@@ -156,9 +178,34 @@ export async function GET() {
             );
         }
 
-        return NextResponse.json(
-            result.data
-        );
+        return NextResponse.json({
+            products: {
+                nodes:
+                    result.data
+                        ?.products
+                        ?.nodes || [],
+
+                pageInfo:
+                    result.data
+                        ?.products
+                        ?.pageInfo || {
+                        hasNextPage: false,
+                    },
+            },
+
+            dataQuality: {
+                filter:
+                    "ACTIVE_AND_PUBLISHED",
+
+                truncated:
+                    Boolean(
+                        result.data
+                            ?.products
+                            ?.pageInfo
+                            ?.hasNextPage
+                    ),
+            },
+        });
     } catch (error) {
         return NextResponse.json(
             {

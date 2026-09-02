@@ -5,6 +5,48 @@ import { hasAdminSession } from "@/lib/require-admin";
 let cachedToken: string | null = null;
 let tokenExpiresAt = 0;
 
+type ShopifyOrder = {
+    test: boolean;
+    tags: string[];
+};
+
+function getAnalyticsStartDate() {
+    const value =
+        process.env.ANALYTICS_START_DATE;
+
+    if (!value) {
+        throw new Error(
+            "ANALYTICS_START_DATE is missing."
+        );
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        throw new Error(
+            "ANALYTICS_START_DATE is invalid."
+        );
+    }
+
+    return date.toISOString();
+}
+
+function hasTestTag(order: ShopifyOrder) {
+    const testTags = new Set([
+        "test",
+        "ai-test",
+        "ai_test",
+        "development",
+        "demo",
+    ]);
+
+    return (order.tags || []).some(tag =>
+        testTags.has(
+            tag.trim().toLowerCase()
+        )
+    );
+}
+
 async function getAccessToken(): Promise<string> {
     const shop = process.env.SHOPIFY_SHOP;
     const clientId = process.env.SHOPIFY_CLIENT_ID;
@@ -36,6 +78,7 @@ async function getAccessToken(): Promise<string> {
                 client_id: clientId,
                 client_secret: clientSecret,
             }),
+            cache: "no-store",
         }
     );
 
@@ -95,34 +138,53 @@ export async function GET() {
             );
         }
 
+        const analyticsStartDate =
+            getAnalyticsStartDate();
+
         const accessToken =
             await getAccessToken();
 
         const query = `
-  query GetOrders {
-    orders(first: 5, reverse: true) {
-      nodes {
-        id
-        name
-        createdAt
-        displayFinancialStatus
-        displayFulfillmentStatus
-        totalPriceSet {
-          shopMoney {
-            amount
-            currencyCode
+          query GetProductionOrders(
+            $searchQuery: String!
+          ) {
+            orders(
+              first: 250
+              reverse: true
+              sortKey: CREATED_AT
+              query: $searchQuery
+            ) {
+              nodes {
+                id
+                name
+                createdAt
+                test
+                tags
+                sourceName
+                displayFinancialStatus
+                displayFulfillmentStatus
+
+                totalPriceSet {
+                  shopMoney {
+                    amount
+                    currencyCode
+                  }
+                }
+
+                lineItems(first: 50) {
+                  nodes {
+                    name
+                    quantity
+                  }
+                }
+              }
+
+              pageInfo {
+                hasNextPage
+              }
+            }
           }
-        }
-        lineItems(first: 5) {
-          nodes {
-            name
-            quantity
-          }
-        }
-      }
-    }
-  }
-`;
+        `;
 
         const response = await fetch(
             `https://${shop}.myshopify.com/admin/api/2026-07/graphql.json`,
@@ -136,6 +198,10 @@ export async function GET() {
                 },
                 body: JSON.stringify({
                     query,
+                    variables: {
+                        searchQuery:
+                            `created_at:>='${analyticsStartDate}'`,
+                    },
                 }),
                 cache: "no-store",
             }
@@ -162,9 +228,62 @@ export async function GET() {
             );
         }
 
-        return NextResponse.json(
-            result.data
-        );
+        const fetchedOrders = (
+            result.data?.orders
+                ?.nodes || []
+        ) as ShopifyOrder[];
+
+        const excludedByTestFlag =
+            fetchedOrders.filter(
+                order =>
+                    order.test === true
+            ).length;
+
+        const excludedByTestTag =
+            fetchedOrders.filter(
+                order =>
+                    order.test !== true &&
+                    hasTestTag(order)
+            ).length;
+
+        const orders =
+            fetchedOrders.filter(
+                order =>
+                    order.test !== true &&
+                    !hasTestTag(order)
+            );
+
+        return NextResponse.json({
+            orders: {
+                nodes: orders,
+
+                pageInfo:
+                    result.data
+                        ?.orders
+                        ?.pageInfo || {
+                        hasNextPage: false,
+                    },
+            },
+
+            dataQuality: {
+                analyticsStartDate,
+
+                fetchedOrders:
+                    fetchedOrders.length,
+
+                excludedByTestFlag,
+
+                excludedByTestTag,
+
+                truncated:
+                    Boolean(
+                        result.data
+                            ?.orders
+                            ?.pageInfo
+                            ?.hasNextPage
+                    ),
+            },
+        });
     } catch (error) {
         return NextResponse.json(
             {
