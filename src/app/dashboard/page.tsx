@@ -1,7 +1,5 @@
 "use client";
-
 import { useEffect, useState } from "react";
-
 import AdminAccountControls from "@/components/AdminAccountControls";
 
 type ProductVariant = {
@@ -304,6 +302,26 @@ export default function DashboardPage() {
     const [error, setError] =
         useState("");
 
+    const [
+        aiAnalysis,
+        setAiAnalysis,
+    ] = useState("");
+
+    const [
+        aiAnalysisLoading,
+        setAiAnalysisLoading,
+    ] = useState(false);
+
+    const [
+        aiAnalysisError,
+        setAiAnalysisError,
+    ] = useState("");
+
+    const [
+        aiAnalysisGeneratedAt,
+        setAiAnalysisGeneratedAt,
+    ] = useState<Date | null>(null);
+
     async function loadData() {
         /*
           Load each Dashboard API independently.
@@ -588,6 +606,79 @@ export default function DashboardPage() {
             clearInterval(interval);
         };
     }, []);
+
+    async function analyzeStore() {
+        if (aiAnalysisLoading) {
+            return;
+        }
+
+        try {
+            setAiAnalysisLoading(true);
+            setAiAnalysisError("");
+
+            const response =
+                await fetch(
+                    "/api/ai/analyze",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+                        credentials:
+                            "same-origin",
+                        cache: "no-store",
+                        body: JSON.stringify({
+                            products,
+                            orders,
+                        }),
+                    }
+                );
+
+            const result =
+                await response
+                    .json()
+                    .catch(() => null);
+
+            if (!response.ok) {
+                throw new Error(
+                    result?.error ||
+                    `AI analysis returned HTTP ${response.status}.`
+                );
+            }
+
+            if (
+                typeof result?.analysis !==
+                "string" ||
+                !result.analysis.trim()
+            ) {
+                throw new Error(
+                    "The AI analysis was empty."
+                );
+            }
+
+            setAiAnalysis(
+                result.analysis.trim()
+            );
+
+            setAiAnalysisGeneratedAt(
+                new Date()
+            );
+        } catch (err) {
+            console.error(
+                "AI analysis error:",
+                err
+            );
+
+            setAiAnalysisError(
+                err instanceof Error
+                    ? err.message
+                    : "Could not generate the AI store report."
+            );
+        } finally {
+            setAiAnalysisLoading(false);
+        }
+    }
 
     async function decide(
         id: string,
@@ -1348,6 +1439,196 @@ export default function DashboardPage() {
                     Analytics unavailable.
                 </p>
             )}
+
+            {/* AI STORE REPORT */}
+
+            <section
+                style={{
+                    marginTop: "42px",
+                    padding: "24px",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: "18px",
+                    background:
+                        "linear-gradient(135deg, #eff6ff 0%, #ffffff 58%, #eef2ff 100%)",
+                    boxShadow:
+                        "0 10px 30px rgba(37, 99, 235, 0.08)",
+                }}
+            >
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent:
+                            "space-between",
+                        alignItems: "flex-start",
+                        gap: "18px",
+                        flexWrap: "wrap",
+                    }}
+                >
+                    <div
+                        style={{
+                            maxWidth: "760px",
+                        }}
+                    >
+                        <div
+                            style={{
+                                color: "#1d4ed8",
+                                fontSize: "13px",
+                                fontWeight: "800",
+                                letterSpacing:
+                                    "0.06em",
+                                textTransform:
+                                    "uppercase",
+                            }}
+                        >
+                            Read-only AI analysis
+                        </div>
+
+                        <h2
+                            style={{
+                                margin:
+                                    "6px 0 7px",
+                            }}
+                        >
+                            AI Store Report
+                        </h2>
+
+                        <p
+                            style={{
+                                margin: 0,
+                                color: "#475569",
+                                lineHeight: 1.6,
+                            }}
+                        >
+                            Analyze the currently loaded products and orders to identify priorities and recommendations. This report cannot change prices, orders, inventory, or fulfillment.
+                        </p>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={
+                            analyzeStore
+                        }
+                        disabled={
+                            aiAnalysisLoading ||
+                            (products.length ===
+                                0 &&
+                                orders.length ===
+                                0)
+                        }
+                        aria-busy={
+                            aiAnalysisLoading
+                        }
+                        style={{
+                            padding:
+                                "12px 18px",
+                            border: "none",
+                            borderRadius: "11px",
+                            background:
+                                aiAnalysisLoading ||
+                                    (products.length ===
+                                        0 &&
+                                        orders.length ===
+                                        0)
+                                    ? "#94a3b8"
+                                    : "#2563eb",
+                            color: "#ffffff",
+                            fontWeight: "800",
+                            cursor:
+                                aiAnalysisLoading ||
+                                    (products.length ===
+                                        0 &&
+                                        orders.length ===
+                                        0)
+                                    ? "not-allowed"
+                                    : "pointer",
+                            boxShadow:
+                                "0 7px 18px rgba(37, 99, 235, 0.22)",
+                        }}
+                    >
+                        {aiAnalysisLoading
+                            ? "Analyzing store..."
+                            : aiAnalysis
+                                ? "Refresh AI Report"
+                                : "Generate AI Report"}
+                    </button>
+                </div>
+
+                {aiAnalysisError && (
+                    <div
+                        role="alert"
+                        style={{
+                            marginTop: "18px",
+                            padding: "13px 15px",
+                            border:
+                                "1px solid #fecaca",
+                            borderRadius:
+                                "11px",
+                            background:
+                                "#fef2f2",
+                            color: "#991b1b",
+                        }}
+                    >
+                        ⚠️ {aiAnalysisError}
+                    </div>
+                )}
+
+                {aiAnalysis ? (
+                    <div
+                        style={{
+                            marginTop: "20px",
+                            padding: "20px",
+                            border:
+                                "1px solid #dbeafe",
+                            borderRadius:
+                                "14px",
+                            background: "#ffffff",
+                        }}
+                    >
+                        <AiAnalysisContent
+                            analysis={
+                                aiAnalysis
+                            }
+                        />
+
+                        {aiAnalysisGeneratedAt && (
+                            <div
+                                style={{
+                                    marginTop:
+                                        "18px",
+                                    paddingTop:
+                                        "12px",
+                                    borderTop:
+                                        "1px solid #e2e8f0",
+                                    color:
+                                        "#64748b",
+                                    fontSize:
+                                        "12px",
+                                    direction:
+                                        "ltr",
+                                    textAlign:
+                                        "left",
+                                }}
+                            >
+                                Generated {aiAnalysisGeneratedAt.toLocaleString()}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    !aiAnalysisError && (
+                        <div
+                            style={{
+                                marginTop:
+                                    "18px",
+                                color: "#64748b",
+                                fontSize:
+                                    "14px",
+                            }}
+                        >
+                            No AI report has been generated in this session yet.
+                        </div>
+                    )
+                )}
+            </section>
 
             {/* FULFILLMENT OVERVIEW */}
 
@@ -2739,6 +3020,163 @@ function formatMoney(
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         }
+    );
+}
+
+function AiAnalysisContent({
+    analysis,
+}: {
+    analysis: string;
+}) {
+    return (
+        <div
+            dir="rtl"
+            lang="ar"
+            style={{
+                color: "#1e293b",
+                lineHeight: 1.8,
+                textAlign: "right",
+            }}
+        >
+            {analysis
+                .split("\n")
+                .map((line, index) => {
+                    const text =
+                        line.trim();
+
+                    if (!text) {
+                        return (
+                            <div
+                                key={index}
+                                style={{
+                                    height: "8px",
+                                }}
+                            />
+                        );
+                    }
+
+                    if (
+                        text.startsWith(
+                            "### "
+                        )
+                    ) {
+                        return (
+                            <h4
+                                key={index}
+                                style={{
+                                    margin:
+                                        "16px 0 5px",
+                                    color:
+                                        "#1e40af",
+                                    fontSize:
+                                        "16px",
+                                }}
+                            >
+                                {text.slice(
+                                    4
+                                )}
+                            </h4>
+                        );
+                    }
+
+                    if (
+                        text.startsWith(
+                            "## "
+                        )
+                    ) {
+                        return (
+                            <h3
+                                key={index}
+                                style={{
+                                    margin:
+                                        "18px 0 6px",
+                                    color:
+                                        "#1e3a8a",
+                                    fontSize:
+                                        "19px",
+                                }}
+                            >
+                                {text.slice(
+                                    3
+                                )}
+                            </h3>
+                        );
+                    }
+
+                    if (
+                        text.startsWith(
+                            "# "
+                        )
+                    ) {
+                        return (
+                            <h3
+                                key={index}
+                                style={{
+                                    margin:
+                                        "18px 0 6px",
+                                    color:
+                                        "#1e3a8a",
+                                    fontSize:
+                                        "21px",
+                                }}
+                            >
+                                {text.slice(
+                                    2
+                                )}
+                            </h3>
+                        );
+                    }
+
+                    const bulletMatch =
+                        text.match(
+                            /^[-*]\s+(.+)$/
+                        );
+
+                    if (bulletMatch) {
+                        return (
+                            <div
+                                key={index}
+                                style={{
+                                    display:
+                                        "flex",
+                                    gap: "9px",
+                                    margin:
+                                        "4px 0",
+                                }}
+                            >
+                                <span
+                                    aria-hidden="true"
+                                    style={{
+                                        color:
+                                            "#2563eb",
+                                        fontWeight:
+                                            "900",
+                                    }}
+                                >
+                                    •
+                                </span>
+                                <span>
+                                    {
+                                        bulletMatch[1]
+                                    }
+                                </span>
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <p
+                            key={index}
+                            style={{
+                                margin:
+                                    "5px 0",
+                            }}
+                        >
+                            {text}
+                        </p>
+                    );
+                })}
+        </div>
     );
 }
 

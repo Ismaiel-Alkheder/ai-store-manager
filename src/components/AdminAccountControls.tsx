@@ -1,7 +1,5 @@
-
-
+"use client";
 import { useState } from "react";
-
 export default function AdminAccountControls({
     variant = "light",
 }: {
