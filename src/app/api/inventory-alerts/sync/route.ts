@@ -193,7 +193,7 @@ async function getPublishedProducts(
     const query = `
       query InventoryBaseline($after: String) {
         products(
-          first: 50,
+          first: 5,
           after: $after,
           query: "status:active AND published_status:published"
         ) {
@@ -204,7 +204,7 @@ async function getPublishedProducts(
           nodes {
             id
             title
-            variants(first: 100) {
+            variants(first: 50) {
               pageInfo {
                 hasNextPage
               }
@@ -215,7 +215,7 @@ async function getPublishedProducts(
                 inventoryItem {
                   id
                   tracked
-                  inventoryLevels(first: 50) {
+                  inventoryLevels(first: 10) {
                     pageInfo {
                       hasNextPage
                     }
