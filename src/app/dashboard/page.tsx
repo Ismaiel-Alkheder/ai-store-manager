@@ -651,7 +651,7 @@ export default function DashboardPage() {
 
             if (
                 typeof result?.analysis !==
-                "string" ||
+                    "string" ||
                 !result.analysis.trim()
             ) {
                 throw new Error(
@@ -1527,9 +1527,9 @@ export default function DashboardPage() {
                             borderRadius: "11px",
                             background:
                                 aiAnalysisLoading ||
-                                    (products.length ===
-                                        0 &&
-                                        orders.length ===
+                                (products.length ===
+                                    0 &&
+                                    orders.length ===
                                         0)
                                     ? "#94a3b8"
                                     : "#2563eb",
@@ -1537,9 +1537,9 @@ export default function DashboardPage() {
                             fontWeight: "800",
                             cursor:
                                 aiAnalysisLoading ||
-                                    (products.length ===
-                                        0 &&
-                                        orders.length ===
+                                (products.length ===
+                                    0 &&
+                                    orders.length ===
                                         0)
                                     ? "not-allowed"
                                     : "pointer",
@@ -1550,8 +1550,8 @@ export default function DashboardPage() {
                         {aiAnalysisLoading
                             ? "Analyzing store..."
                             : aiAnalysis
-                                ? "Refresh AI Report"
-                                : "Generate AI Report"}
+                              ? "Refresh AI Report"
+                              : "Generate AI Report"}
                     </button>
                 </div>
 
@@ -3044,7 +3044,16 @@ function AiAnalysisContent({
                 .split("\n")
                 .map((line, index) => {
                     const text =
-                        line.trim();
+                        line
+                            .trim()
+                            .replace(
+                                /\\+/g,
+                                ""
+                            )
+                            .replace(
+                                /\*/g,
+                                ""
+                            );
 
                     if (!text) {
                         return (
@@ -3059,7 +3068,7 @@ function AiAnalysisContent({
 
                     if (
                         text.startsWith(
-                            "### "
+                            "#### "
                         )
                     ) {
                         return (
@@ -3074,10 +3083,38 @@ function AiAnalysisContent({
                                         "16px",
                                 }}
                             >
-                                {text.slice(
-                                    4
+                                {renderAiInline(
+                                    text.slice(
+                                        5
+                                    )
                                 )}
                             </h4>
+                        );
+                    }
+
+                    if (
+                        text.startsWith(
+                            "### "
+                        )
+                    ) {
+                        return (
+                            <h3
+                                key={index}
+                                style={{
+                                    margin:
+                                        "18px 0 6px",
+                                    color:
+                                        "#1e40af",
+                                    fontSize:
+                                        "18px",
+                                }}
+                            >
+                                {renderAiInline(
+                                    text.slice(
+                                        4
+                                    )
+                                )}
+                            </h3>
                         );
                     }
 
@@ -3098,8 +3135,10 @@ function AiAnalysisContent({
                                         "19px",
                                 }}
                             >
-                                {text.slice(
-                                    3
+                                {renderAiInline(
+                                    text.slice(
+                                        3
+                                    )
                                 )}
                             </h3>
                         );
@@ -3122,8 +3161,10 @@ function AiAnalysisContent({
                                         "21px",
                                 }}
                             >
-                                {text.slice(
-                                    2
+                                {renderAiInline(
+                                    text.slice(
+                                        2
+                                    )
                                 )}
                             </h3>
                         );
@@ -3131,7 +3172,7 @@ function AiAnalysisContent({
 
                     const bulletMatch =
                         text.match(
-                            /^[-*]\s+(.+)$/
+                            /^(?:[-*]\s+|\*\*•\*\*\s*|•\s*)(.+)$/
                         );
 
                     if (bulletMatch) {
@@ -3158,9 +3199,46 @@ function AiAnalysisContent({
                                     •
                                 </span>
                                 <span>
-                                    {
+                                    {renderAiInline(
                                         bulletMatch[1]
+                                    )}
+                                </span>
+                            </div>
+                        );
+                    }
+
+                    const numberedMatch =
+                        text.match(
+                            /^(\d+)\.\s+(.+)$/
+                        );
+
+                    if (numberedMatch) {
+                        return (
+                            <div
+                                key={index}
+                                style={{
+                                    display:
+                                        "flex",
+                                    gap: "9px",
+                                    margin:
+                                        "7px 0",
+                                }}
+                            >
+                                <strong
+                                    style={{
+                                        color:
+                                            "#2563eb",
+                                    }}
+                                >
+                                    {
+                                        numberedMatch[1]
                                     }
+                                    .
+                                </strong>
+                                <span>
+                                    {renderAiInline(
+                                        numberedMatch[2]
+                                    )}
                                 </span>
                             </div>
                         );
@@ -3174,12 +3252,47 @@ function AiAnalysisContent({
                                     "5px 0",
                             }}
                         >
-                            {text}
+                            {renderAiInline(
+                                text
+                            )}
                         </p>
                     );
                 })}
         </div>
     );
+}
+
+function renderAiInline(
+    text: string
+) {
+    const normalizedText =
+        text
+            .replace(
+                /\\+/g,
+                ""
+            )
+            .replace(
+                /\*/g,
+                ""
+            );
+
+    return normalizedText
+        .split(/(\*\*[^*]+\*\*)/g)
+        .filter(Boolean)
+        .map((part, index) => {
+            if (
+                part.startsWith("**") &&
+                part.endsWith("**")
+            ) {
+                return (
+                    <strong key={index}>
+                        {part.slice(2, -2)}
+                    </strong>
+                );
+            }
+
+            return part;
+        });
 }
 
 function cardAccent(
