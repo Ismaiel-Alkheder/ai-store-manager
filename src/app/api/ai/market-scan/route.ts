@@ -303,26 +303,191 @@ function isMarketScanResult(
     );
 }
 
-export async function GET() {
-    if (!(await hasAdminSession())) {
-        return NextResponse.json(
-            {
-                success: false,
-                error: "Unauthorized.",
-            },
-            {
-                status: 401,
-            }
+function completeMarketScan(
+    response: OpenAIResponse
+) {
+    if (response.status === "incomplete") {
+        const reason =
+            response.incomplete_details
+                ?.reason;
+
+        throw new Error(
+            `Market Scan response stopped before completion${
+                reason
+                    ? ` (${reason})`
+                    : ""
+            }.`
         );
     }
 
-    const scans = listMarketScans(5);
+    if (
+        response.status === "failed" ||
+        response.status === "cancelled"
+    ) {
+        throw new Error(
+            response.error?.message ||
+                `Market Scan ended with status ${response.status}.`
+        );
+    }
 
-    return NextResponse.json({
-        success: true,
-        count: scans.length,
-        scans,
+    if (response.status !== "completed") {
+        return null;
+    }
+
+    const outputText =
+        response.output_text.trim();
+
+    if (!outputText) {
+        throw new Error(
+            "Market Scan returned no analysis."
+        );
+    }
+
+    let parsed: unknown;
+
+    try {
+        parsed = JSON.parse(outputText);
+    } catch {
+        throw new Error(
+            "Market Scan returned incomplete structured data. Please try again."
+        );
+    }
+
+    if (!isMarketScanResult(parsed)) {
+        throw new Error(
+            "Market Scan returned an invalid result."
+        );
+    }
+
+    const citations =
+        collectCitations(response);
+
+    if (citations.length === 0) {
+        throw new Error(
+            "Market Scan returned no source links."
+        );
+    }
+
+    return createMarketScan({
+        result: parsed,
+        citations,
+        model: MARKET_MODEL,
     });
+}
+
+export async function GET(
+    request: Request
+) {
+    try {
+        if (!(await hasAdminSession())) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: "Unauthorized.",
+                },
+                {
+                    status: 401,
+                }
+            );
+        }
+
+        const responseId = new URL(
+            request.url
+        ).searchParams.get("responseId");
+
+        if (!responseId) {
+            const scans =
+                listMarketScans(5);
+
+            return NextResponse.json({
+                success: true,
+                count: scans.length,
+                scans,
+            });
+        }
+
+        if (
+            !/^resp_[A-Za-z0-9_-]+$/.test(
+                responseId
+            ) ||
+            responseId.length > 200
+        ) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error:
+                        "Invalid Market Scan response ID.",
+                },
+                {
+                    status: 400,
+                }
+            );
+        }
+
+        const apiKey =
+            process.env.OPENAI_API_KEY;
+
+        if (!apiKey) {
+            throw new Error(
+                "OPENAI_API_KEY is missing."
+            );
+        }
+
+        const client = new OpenAI({
+            apiKey,
+        });
+
+        const response =
+            await client.responses.retrieve(
+                responseId,
+                {
+                    include: [
+                        "web_search_call.action.sources",
+                    ],
+                }
+            );
+
+        const scan =
+            completeMarketScan(response);
+
+        if (!scan) {
+            return NextResponse.json(
+                {
+                    success: true,
+                    responseId,
+                    status: response.status,
+                },
+                {
+                    status: 202,
+                }
+            );
+        }
+
+        return NextResponse.json({
+            success: true,
+            responseId,
+            status: "completed",
+            scan,
+        });
+    } catch (error) {
+        console.error(
+            "Market Scan status error:",
+            error
+        );
+
+        return NextResponse.json(
+            {
+                success: false,
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Could not read Market Scan status.",
+            },
+            {
+                status: 500,
+            }
+        );
+    }
 }
 
 export async function POST(
@@ -445,7 +610,7 @@ export async function POST(
         const response =
             await client.responses.create({
                 model: MARKET_MODEL,
-                store: false,
+                background: true,
                 reasoning: {
                     effort: "low",
                 },
@@ -515,64 +680,16 @@ ${JSON.stringify(
                 `,
             });
 
-        if (response.status === "incomplete") {
-            const reason =
-                response.incomplete_details
-                    ?.reason;
-
-            throw new Error(
-                `Market Scan response stopped before completion${
-                    reason
-                        ? ` (${reason})`
-                        : ""
-                }.`
-            );
-        }
-
-        const outputText =
-            response.output_text.trim();
-
-        if (!outputText) {
-            throw new Error(
-                "Market Scan returned no analysis."
-            );
-        }
-
-        let parsed: unknown;
-
-        try {
-            parsed = JSON.parse(outputText);
-        } catch {
-            throw new Error(
-                "Market Scan returned incomplete structured data. Please try again."
-            );
-        }
-
-        if (!isMarketScanResult(parsed)) {
-            throw new Error(
-                "Market Scan returned an invalid result."
-            );
-        }
-
-        const citations =
-            collectCitations(response);
-
-        if (citations.length === 0) {
-            throw new Error(
-                "Market Scan returned no source links."
-            );
-        }
-
-        const scan = createMarketScan({
-            result: parsed,
-            citations,
-            model: MARKET_MODEL,
-        });
-
-        return NextResponse.json({
-            success: true,
-            scan,
-        });
+        return NextResponse.json(
+            {
+                success: true,
+                responseId: response.id,
+                status: response.status,
+            },
+            {
+                status: 202,
+            }
+        );
     } catch (error) {
         console.error(
             "Market Scan error:",

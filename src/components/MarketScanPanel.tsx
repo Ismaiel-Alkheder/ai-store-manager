@@ -29,7 +29,47 @@ type MarketScanResponse = {
     scan?: MarketScan;
     error?: string;
     retryAfterSeconds?: number;
+    responseId?: string;
+    status?: string;
 };
+
+async function readApiResponse(
+    response: Response
+): Promise<MarketScanResponse> {
+    const text = await response.text();
+
+    if (!text) {
+        return {};
+    }
+
+    try {
+        return JSON.parse(
+            text
+        ) as MarketScanResponse;
+    } catch {
+        const detail = text
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 160);
+
+        throw new Error(
+            `The server returned a temporary non-JSON response (HTTP ${response.status})${
+                detail
+                    ? `: ${detail}`
+                    : "."
+            }`
+        );
+    }
+}
+
+function wait(milliseconds: number) {
+    return new Promise<void>(resolve => {
+        window.setTimeout(
+            resolve,
+            milliseconds
+        );
+    });
+}
 
 const confidenceStyle: Record<
     MarketConfidence,
@@ -256,7 +296,9 @@ export default function MarketScanPanel({
                     }
                 );
                 const data =
-                    (await response.json()) as MarketScanResponse;
+                    await readApiResponse(
+                        response
+                    );
 
                 if (!response.ok) {
                     throw new Error(
@@ -293,6 +335,57 @@ export default function MarketScanPanel({
         };
     }, []);
 
+    async function waitForMarketScan(
+        responseId: string
+    ) {
+        for (
+            let attempt = 0;
+            attempt < 90;
+            attempt += 1
+        ) {
+            await wait(4000);
+
+            const response = await fetch(
+                `/api/ai/market-scan?responseId=${encodeURIComponent(
+                    responseId
+                )}`,
+                {
+                    cache: "no-store",
+                }
+            );
+            const data =
+                await readApiResponse(
+                    response
+                );
+
+            if (
+                response.status === 202
+            ) {
+                setMessage(
+                    `Market Scan is running in the background (${data.status || "in progress"})…`
+                );
+                continue;
+            }
+
+            if (!response.ok || !data.scan) {
+                throw new Error(
+                    data.error ||
+                        `Market Scan status returned HTTP ${response.status}`
+                );
+            }
+
+            setScan(data.scan);
+            setMessage(
+                "Market Scan completed and saved."
+            );
+            return;
+        }
+
+        throw new Error(
+            "Market Scan is still running. Refresh the page in a few minutes to check again."
+        );
+    }
+
     async function runMarketScan() {
         setLoading(true);
         setMessage("");
@@ -312,7 +405,9 @@ export default function MarketScanPanel({
                 }
             );
             const data =
-                (await response.json()) as MarketScanResponse;
+                await readApiResponse(
+                    response
+                );
 
             if (
                 response.status === 429 &&
@@ -338,16 +433,28 @@ export default function MarketScanPanel({
                 return;
             }
 
-            if (!response.ok || !data.scan) {
+            if (
+                response.status === 202 &&
+                data.responseId
+            ) {
+                setMessage(
+                    "Market Scan started in the background…"
+                );
+                await waitForMarketScan(
+                    data.responseId
+                );
+                return;
+            }
+
+            if (!response.ok) {
                 throw new Error(
                     data.error ||
                         `Market Scan returned HTTP ${response.status}`
                 );
             }
 
-            setScan(data.scan);
-            setMessage(
-                "Market Scan completed and saved."
+            throw new Error(
+                "Market Scan did not return a background response ID."
             );
         } catch (error) {
             setMessage(
