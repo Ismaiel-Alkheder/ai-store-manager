@@ -10,6 +10,21 @@ export const runtime = "nodejs";
 
 const LOW_STOCK_LIMIT = 5;
 
+type InventoryApprovalMode =
+    | "ALERT_ONLY"
+    | "RESTOCK_APPROVAL";
+
+function getInventoryApprovalMode():
+    InventoryApprovalMode {
+    return process.env
+        .INVENTORY_APPROVAL_MODE
+        ?.trim()
+        .toUpperCase() ===
+        "RESTOCK_APPROVAL"
+        ? "RESTOCK_APPROVAL"
+        : "ALERT_ONLY";
+}
+
 function verifyWebhook(
     rawBody: Buffer,
     hmacHeader: string,
@@ -104,6 +119,9 @@ export async function POST(
         const now =
             new Date().toISOString();
 
+        const inventoryApprovalMode =
+            getInventoryApprovalMode();
+
         let alertId:
             | number
             | null = null;
@@ -190,25 +208,29 @@ export async function POST(
               CREATE RESTOCK APPROVAL
             */
 
-            const approvalId =
-                `inventory-alert-${alertId}-restock`;
+            if (
+                inventoryApprovalMode ===
+                "RESTOCK_APPROVAL"
+            ) {
+                const approvalId =
+                    `inventory-alert-${alertId}-restock`;
 
-            const existingApproval:
-                any = db
-                    .prepare(`
+                const existingApproval:
+                    any = db
+                        .prepare(`
           SELECT *
           FROM inventory_approvals
           WHERE id = ?
           LIMIT 1
         `)
-                    .get(approvalId);
+                        .get(approvalId);
 
-            const reason =
-                `Inventory is low. Only ${available} units remain. ` +
-                `The low-stock limit is ${LOW_STOCK_LIMIT}.`;
+                const reason =
+                    `Inventory is low. Only ${available} units remain. ` +
+                    `The low-stock limit is ${LOW_STOCK_LIMIT}.`;
 
-            if (!existingApproval) {
-                db.prepare(`
+                if (!existingApproval) {
+                    db.prepare(`
           INSERT INTO inventory_approvals (
             id,
             action,
@@ -223,41 +245,42 @@ export async function POST(
           )
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
-                    approvalId,
-                    "REVIEW_RESTOCK",
-                    alertId,
-                    inventoryItemId,
-                    locationId,
-                    available,
-                    reason,
-                    "PENDING",
-                    now,
-                    null
-                );
+                        approvalId,
+                        "REVIEW_RESTOCK",
+                        alertId,
+                        inventoryItemId,
+                        locationId,
+                        available,
+                        reason,
+                        "PENDING",
+                        now,
+                        null
+                    );
 
-                approvalCreated =
-                    true;
+                    approvalCreated =
+                        true;
 
-                console.log(
-                    "RESTOCK APPROVAL CREATED:",
-                    inventoryItemId,
-                    available
-                );
-            } else if (
-                existingApproval.status ===
-                "PENDING"
-            ) {
-                db.prepare(`
+                    console.log(
+                        "RESTOCK APPROVAL CREATED:",
+                        inventoryItemId,
+                        available
+                    );
+                } else if (
+                    existingApproval.status ===
+                    "PENDING"
+                ) {
+                    db.prepare(`
           UPDATE inventory_approvals
           SET
             available = ?,
             reason = ?
           WHERE id = ?
         `).run(
-                    available,
-                    reason,
-                    approvalId
-                );
+                        available,
+                        reason,
+                        approvalId
+                    );
+                }
             }
         }
 
@@ -335,6 +358,7 @@ export async function POST(
                 LOW_STOCK_LIMIT,
             alertId,
             approvalCreated,
+            inventoryApprovalMode,
         });
     } catch (error) {
         console.error(
