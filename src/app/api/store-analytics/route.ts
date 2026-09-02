@@ -4,6 +4,54 @@ import { hasAdminSession } from "@/lib/require-admin";
 
 export const runtime = "nodejs";
 
+type ShopifyOrder = {
+    id: string;
+    name: string;
+    createdAt: string;
+    test: boolean;
+    tags: string[];
+    sourceName: string | null;
+    displayFinancialStatus: string;
+    displayFulfillmentStatus: string;
+    totalPriceSet?: {
+        shopMoney?: {
+            amount?: string;
+            currencyCode?: string;
+        };
+    };
+    lineItems?: {
+        nodes?: Array<{
+            name: string;
+            quantity: number;
+        }>;
+    };
+};
+
+/*
+  ANALYTICS CONFIGURATION
+*/
+
+function getAnalyticsStartDate() {
+    const value =
+        process.env.ANALYTICS_START_DATE;
+
+    if (!value) {
+        throw new Error(
+            "ANALYTICS_START_DATE is missing."
+        );
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        throw new Error(
+            "ANALYTICS_START_DATE is invalid. Use an ISO date such as 2026-09-02T00:00:00Z."
+        );
+    }
+
+    return date.toISOString();
+}
+
 /*
   SHOPIFY ACCESS TOKEN
 */
@@ -48,6 +96,8 @@ async function getAccessToken() {
                 client_secret:
                     clientSecret,
             }),
+
+            cache: "no-store",
         }
     );
 
@@ -67,7 +117,9 @@ async function getAccessToken() {
   SHOPIFY ORDERS
 */
 
-async function getOrders() {
+async function getOrders(
+    analyticsStartDate: string
+) {
     const shop =
         process.env.SHOPIFY_SHOP;
 
@@ -81,15 +133,22 @@ async function getOrders() {
         await getAccessToken();
 
     const query = `
-    query StoreAnalyticsOrders {
+    query StoreAnalyticsOrders(
+      $searchQuery: String!
+    ) {
       orders(
-        first: 50,
-        reverse: true
+        first: 250,
+        reverse: true,
+        sortKey: CREATED_AT,
+        query: $searchQuery
       ) {
         nodes {
           id
           name
           createdAt
+          test
+          tags
+          sourceName
 
           displayFinancialStatus
           displayFulfillmentStatus
@@ -107,6 +166,10 @@ async function getOrders() {
               quantity
             }
           }
+        }
+
+        pageInfo {
+          hasNextPage
         }
       }
     }
@@ -127,6 +190,10 @@ async function getOrders() {
 
             body: JSON.stringify({
                 query,
+                variables: {
+                    searchQuery:
+                        `created_at:>='${analyticsStartDate}'`,
+                },
             }),
 
             cache: "no-store",
@@ -150,9 +217,34 @@ async function getOrders() {
         );
     }
 
-    return (
-        result.data?.orders?.nodes ||
-        []
+    return {
+        orders: (
+            result.data?.orders
+                ?.nodes || []
+        ) as ShopifyOrder[],
+
+        hasNextPage: Boolean(
+            result.data?.orders
+                ?.pageInfo
+                ?.hasNextPage
+        ),
+    };
+}
+
+function hasTestTag(order: ShopifyOrder) {
+    const testTags = new Set([
+        "test",
+        "ai-test",
+        "ai_test",
+        "development",
+        "demo",
+    ]);
+
+    return (order.tags || []).some(
+        tag =>
+            testTags.has(
+                tag.trim().toLowerCase()
+            )
     );
 }
 
@@ -174,8 +266,36 @@ export async function GET() {
             );
         }
 
+        const analyticsStartDate =
+            getAnalyticsStartDate();
+
+        const shopifyResult =
+            await getOrders(
+                analyticsStartDate
+            );
+
+        const fetchedOrders =
+            shopifyResult.orders;
+
+        const excludedByTestFlag =
+            fetchedOrders.filter(
+                order =>
+                    order.test === true
+            ).length;
+
+        const excludedByTestTag =
+            fetchedOrders.filter(
+                order =>
+                    order.test !== true &&
+                    hasTestTag(order)
+            ).length;
+
         const orders =
-            await getOrders();
+            fetchedOrders.filter(
+                order =>
+                    order.test !== true &&
+                    !hasTestTag(order)
+            );
 
         const orderCount =
             orders.length;
@@ -186,10 +306,7 @@ export async function GET() {
 
         const totalOrderValue =
             orders.reduce(
-                (
-                    total: number,
-                    order: any
-                ) => {
+                (total, order) => {
                     return (
                         total +
                         Number(
@@ -214,20 +331,22 @@ export async function GET() {
 
         const paidOrders =
             orders.filter(
-                (order: any) =>
+                order =>
                     order.displayFinancialStatus ===
                     "PAID"
             );
 
         /*
-          UNFULFILLED ORDERS
+          PAID ORDERS THAT NEED FULFILLMENT
         */
 
         const needsFulfillment =
             orders.filter(
-                (order: any) =>
+                order =>
+                    order.displayFinancialStatus ===
+                        "PAID" &&
                     order.displayFulfillmentStatus !==
-                    "FULFILLED"
+                        "FULFILLED"
             );
 
         /*
@@ -235,21 +354,14 @@ export async function GET() {
         */
 
         const productUnits =
-            new Map<
-                string,
-                number
-            >();
+            new Map<string, number>();
 
-        for (
-            const order of orders
-        ) {
+        for (const order of orders) {
             const lineItems =
                 order.lineItems
                     ?.nodes || [];
 
-            for (
-                const item of lineItems
-            ) {
+            for (const item of lineItems) {
                 const current =
                     productUnits.get(
                         item.name
@@ -258,9 +370,9 @@ export async function GET() {
                 productUnits.set(
                     item.name,
                     current +
-                    Number(
-                        item.quantity || 0
-                    )
+                        Number(
+                            item.quantity || 0
+                        )
                 );
             }
         }
@@ -337,9 +449,6 @@ export async function GET() {
 
         /*
           CURRENCY
-
-          We use the first order's
-          store money currency for display.
         */
 
         const currency =
@@ -353,8 +462,22 @@ export async function GET() {
             source:
                 "shopify + sqlite",
 
+            analyticsStartDate,
+
             ordersAnalyzed:
                 orderCount,
+
+            dataQuality: {
+                fetchedOrders:
+                    fetchedOrders.length,
+
+                excludedByTestFlag,
+
+                excludedByTestTag,
+
+                truncated:
+                    shopifyResult.hasNextPage,
+            },
 
             currency,
 
