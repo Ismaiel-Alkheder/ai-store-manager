@@ -446,6 +446,9 @@ export async function POST(
             await client.responses.create({
                 model: MARKET_MODEL,
                 store: false,
+                reasoning: {
+                    effort: "low",
+                },
                 tools: [
                     {
                         type: "web_search",
@@ -465,7 +468,7 @@ export async function POST(
                 include: [
                     "web_search_call.action.sources",
                 ],
-                max_output_tokens: 3000,
+                max_output_tokens: 8000,
                 text: {
                     verbosity: "low",
                     format: {
@@ -512,6 +515,20 @@ ${JSON.stringify(
                 `,
             });
 
+        if (response.status === "incomplete") {
+            const reason =
+                response.incomplete_details
+                    ?.reason;
+
+            throw new Error(
+                `Market Scan response stopped before completion${
+                    reason
+                        ? ` (${reason})`
+                        : ""
+                }.`
+            );
+        }
+
         const outputText =
             response.output_text.trim();
 
@@ -521,8 +538,15 @@ ${JSON.stringify(
             );
         }
 
-        const parsed: unknown =
-            JSON.parse(outputText);
+        let parsed: unknown;
+
+        try {
+            parsed = JSON.parse(outputText);
+        } catch {
+            throw new Error(
+                "Market Scan returned incomplete structured data. Please try again."
+            );
+        }
 
         if (!isMarketScanResult(parsed)) {
             throw new Error(
