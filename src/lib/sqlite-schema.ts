@@ -175,6 +175,26 @@ export function initializeSqliteSchema(
   `);
 
     /*
+      AI STORE REPORTS
+
+      Only the generated report and a small input
+      summary are stored. Raw Shopify data is not
+      persisted in this table.
+    */
+
+    db.exec(`
+    CREATE TABLE IF NOT EXISTS ai_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      analysis TEXT NOT NULL,
+      model TEXT NOT NULL,
+      source TEXT NOT NULL DEFAULT 'MANUAL',
+      product_count INTEGER NOT NULL DEFAULT 0,
+      order_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+    /*
       INDEXES
     */
 
@@ -221,6 +241,12 @@ export function initializeSqliteSchema(
     CREATE INDEX IF NOT EXISTS
     idx_agent_events_source
     ON agent_events(source)
+  `);
+
+    db.exec(`
+    CREATE INDEX IF NOT EXISTS
+    idx_ai_reports_created_at
+    ON ai_reports(created_at)
   `);
 
     /*

@@ -838,4 +838,82 @@ export function installAgentEventTriggers(
 
     END;
   `);
+
+    /*
+      AI STORE REPORT GENERATED
+    */
+
+    db.exec(`
+    CREATE TRIGGER IF NOT EXISTS
+    trg_ai_report_created
+
+    AFTER INSERT ON ai_reports
+
+    BEGIN
+
+      INSERT OR IGNORE INTO agent_events (
+        event_key,
+        source,
+        event_type,
+        entity_type,
+        entity_id,
+        title,
+        message,
+        status,
+        metadata_json,
+        created_at
+      )
+
+      VALUES (
+        'ai-report:' ||
+        CAST(
+          NEW.id AS TEXT
+        ),
+
+        'AI',
+
+        'AI_REPORT_GENERATED',
+
+        'AI_REPORT',
+
+        CAST(
+          NEW.id AS TEXT
+        ),
+
+        'AI store report generated',
+
+        'Analyzed ' ||
+        CAST(
+          NEW.order_count AS TEXT
+        ) ||
+        ' orders and ' ||
+        CAST(
+          NEW.product_count AS TEXT
+        ) ||
+        ' products.',
+
+        'COMPLETED',
+
+        json_object(
+          'reportId',
+          NEW.id,
+
+          'model',
+          NEW.model,
+
+          'source',
+          NEW.source,
+
+          'productCount',
+          NEW.product_count,
+
+          'orderCount',
+          NEW.order_count
+        ),
+
+        NEW.created_at
+      );
+
+    END;
+  `);
 }

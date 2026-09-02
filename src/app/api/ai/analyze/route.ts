@@ -1,10 +1,13 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 
+import { createAiReport } from "@/lib/ai-reports";
 import { hasAdminSession } from "@/lib/require-admin";
 import { isSameOriginAdminRequest } from "@/lib/require-same-origin";
 
 export const runtime = "nodejs";
+
+const AI_MODEL = "gpt-5.6-luna";
 
 export async function POST(request: Request) {
     try {
@@ -139,7 +142,7 @@ export async function POST(request: Request) {
         const response =
             await client.responses.create({
                 model:
-                    "gpt-5.6-luna",
+                    AI_MODEL,
 
                 instructions: `
 أنت مدير متجر إلكتروني ذكي يساعد صاحب متجر Shopify.
@@ -174,9 +177,29 @@ ${JSON.stringify(
                     600,
             });
 
+        const analysis =
+            response.output_text.trim();
+
+        if (!analysis) {
+            throw new Error(
+                "AI analysis was empty."
+            );
+        }
+
+        const report = createAiReport({
+            analysis,
+            model: AI_MODEL,
+            source: "MANUAL",
+            productCount:
+                storeData.products.length,
+            orderCount:
+                storeData.orders.length,
+        });
+
         return NextResponse.json({
-            analysis:
-                response.output_text,
+            success: true,
+            analysis,
+            report,
         });
     } catch (error) {
         console.error(

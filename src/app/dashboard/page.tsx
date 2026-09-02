@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 
 import AdminAccountControls from "@/components/AdminAccountControls";
 
@@ -183,6 +187,16 @@ type StoreAnalytics = {
     generatedAt: string;
 };
 
+type AiReport = {
+    id: number;
+    analysis: string;
+    model: string;
+    source: string;
+    productCount: number;
+    orderCount: number;
+    createdAt: string;
+};
+
 type FulfillmentLineItem = {
     fulfillmentOrderLineItemId: string;
     productTitle: string;
@@ -324,6 +338,42 @@ export default function DashboardPage() {
         setAiAnalysisGeneratedAt,
     ] = useState<Date | null>(null);
 
+    const [
+        aiReports,
+        setAiReports,
+    ] = useState<AiReport[]>([]);
+
+    const [
+        selectedAiReportId,
+        setSelectedAiReportId,
+    ] = useState<number | null>(null);
+
+    const selectedAiReportIdRef =
+        useRef<number | null>(null);
+
+    function selectAiReport(
+        report: AiReport
+    ) {
+        selectedAiReportIdRef.current =
+            report.id;
+
+        setSelectedAiReportId(
+            report.id
+        );
+
+        setAiAnalysis(
+            report.analysis
+        );
+
+        setAiAnalysisGeneratedAt(
+            new Date(
+                report.createdAt
+            )
+        );
+
+        setAiAnalysisError("");
+    }
+
     async function loadData() {
         /*
           Load each Dashboard API independently.
@@ -364,6 +414,10 @@ export default function DashboardPage() {
             {
                 name: "analytics",
                 url: "/api/store-analytics",
+            },
+            {
+                name: "aiReports",
+                url: "/api/ai/reports?limit=10",
             },
             {
                 name: "fulfillmentTasks",
@@ -524,6 +578,33 @@ export default function DashboardPage() {
 
                 if (
                     name ===
+                    "aiReports"
+                ) {
+                    const reports =
+                        Array.isArray(
+                            data.reports
+                        )
+                            ? data.reports
+                            : [];
+
+                    setAiReports(
+                        reports
+                    );
+
+                    if (
+                        reports.length >
+                            0 &&
+                        selectedAiReportIdRef.current ===
+                            null
+                    ) {
+                        selectAiReport(
+                            reports[0]
+                        );
+                    }
+                }
+
+                if (
+                    name ===
                     "fulfillmentTasks"
                 ) {
                     setFulfillmentTasks(
@@ -663,9 +744,37 @@ export default function DashboardPage() {
                 result.analysis.trim()
             );
 
-            setAiAnalysisGeneratedAt(
-                new Date()
-            );
+            const savedReport =
+                result?.report;
+
+            if (
+                savedReport &&
+                typeof savedReport.id ===
+                    "number" &&
+                typeof savedReport.analysis ===
+                    "string" &&
+                typeof savedReport.createdAt ===
+                    "string"
+            ) {
+                selectAiReport(
+                    savedReport
+                );
+
+                setAiReports(
+                    (current) => [
+                        savedReport,
+                        ...current.filter(
+                            (report) =>
+                                report.id !==
+                                savedReport.id
+                        ),
+                    ].slice(0, 10)
+                );
+            } else {
+                setAiAnalysisGeneratedAt(
+                    new Date()
+                );
+            }
         } catch (err) {
             console.error(
                 "AI analysis error:",
@@ -1629,6 +1738,128 @@ export default function DashboardPage() {
                             No AI report has been generated in this session yet.
                         </div>
                     )
+                )}
+
+                {aiReports.length > 0 && (
+                    <div
+                        style={{
+                            marginTop: "22px",
+                            paddingTop: "20px",
+                            borderTop:
+                                "1px solid #bfdbfe",
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: "flex",
+                                justifyContent:
+                                    "space-between",
+                                alignItems:
+                                    "baseline",
+                                gap: "12px",
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            <h3
+                                style={{
+                                    margin: 0,
+                                    fontSize:
+                                        "17px",
+                                }}
+                            >
+                                Saved Report History
+                            </h3>
+
+                            <small
+                                style={{
+                                    color:
+                                        "#64748b",
+                                }}
+                            >
+                                Stored securely in SQLite
+                            </small>
+                        </div>
+
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns:
+                                    "repeat(auto-fit, minmax(230px, 1fr))",
+                                gap: "10px",
+                                marginTop: "14px",
+                            }}
+                        >
+                            {aiReports.map(
+                                (report) => {
+                                    const isSelected =
+                                        selectedAiReportId ===
+                                        report.id;
+
+                                    return (
+                                        <button
+                                            key={
+                                                report.id
+                                            }
+                                            type="button"
+                                            onClick={() =>
+                                                selectAiReport(
+                                                    report
+                                                )
+                                            }
+                                            style={{
+                                                padding:
+                                                    "12px 14px",
+                                                border:
+                                                    isSelected
+                                                        ? "2px solid #2563eb"
+                                                        : "1px solid #cbd5e1",
+                                                borderRadius:
+                                                    "11px",
+                                                background:
+                                                    isSelected
+                                                        ? "#eff6ff"
+                                                        : "#ffffff",
+                                                color:
+                                                    "#0f172a",
+                                                textAlign:
+                                                    "left",
+                                                cursor:
+                                                    "pointer",
+                                            }}
+                                        >
+                                            <strong
+                                                style={{
+                                                    display:
+                                                        "block",
+                                                    fontSize:
+                                                        "13px",
+                                                }}
+                                            >
+                                                {new Date(
+                                                    report.createdAt
+                                                ).toLocaleString()}
+                                            </strong>
+
+                                            <span
+                                                style={{
+                                                    display:
+                                                        "block",
+                                                    marginTop:
+                                                        "5px",
+                                                    color:
+                                                        "#64748b",
+                                                    fontSize:
+                                                        "12px",
+                                                }}
+                                            >
+                                                {report.orderCount} orders · {report.productCount} products
+                                            </span>
+                                        </button>
+                                    );
+                                }
+                            )}
+                        </div>
+                    </div>
                 )}
             </section>
 
@@ -2995,6 +3226,9 @@ function eventIcon(
 
         case "FULFILLMENT_REQUEST_REJECTED":
             return "❌";
+
+        case "AI_REPORT_GENERATED":
+            return "🤖";
 
         default:
             return "•";
