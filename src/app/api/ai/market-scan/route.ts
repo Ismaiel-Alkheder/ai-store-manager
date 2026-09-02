@@ -211,7 +211,8 @@ function collectCitations(
         string,
         string
     >();
-    const urls = new Set<string>();
+    const citedUrls = new Set<string>();
+    const searchUrls = new Set<string>();
 
     for (const item of response.output) {
         if (item.type === "message") {
@@ -234,7 +235,7 @@ function collectCitations(
                             annotation.url
                         )
                     ) {
-                        urls.add(
+                        citedUrls.add(
                             annotation.url
                         );
                         titles.set(
@@ -258,14 +259,48 @@ function collectCitations(
                 if (
                     validHttpUrl(source.url)
                 ) {
-                    urls.add(source.url);
+                    searchUrls.add(
+                        source.url
+                    );
                 }
             }
         }
     }
 
-    return Array.from(urls)
-        .slice(0, 40)
+    const blockedDomains = [
+        "reddit.com",
+        "wikipedia.org",
+    ];
+
+    const isUsefulSource = (
+        url: string
+    ) => {
+        try {
+            const hostname = new URL(url)
+                .hostname
+                .replace(/^www\./, "");
+
+            return !blockedDomains.some(
+                domain =>
+                    hostname === domain ||
+                    hostname.endsWith(
+                        `.${domain}`
+                    )
+            );
+        } catch {
+            return false;
+        }
+    };
+
+    const orderedUrls = [
+        ...citedUrls,
+        ...searchUrls,
+    ].filter(isUsefulSource);
+
+    return Array.from(
+        new Set(orderedUrls)
+    )
+        .slice(0, 12)
         .map(url => ({
             url,
             title:
@@ -664,6 +699,9 @@ export async function POST(
 
 جودة البحث:
 - فرّق بوضوح بين دليل السوق والاستنتاج.
+- استخدم مصادر أولية أو رسمية، ومتاجر أمريكية كبرى، ومراجعات تحريرية موثوقة. تجنب Reddit وWikipedia ومواقع التسويق بالعمولة أو المحتوى المكرر.
+- اجعل البحث مركزاً واستخدم فقط المصادر المرتبطة مباشرة بالاستنتاجات النهائية.
+- اكتب حقول النتيجة كنص عادي. لا تضع روابط أو صيغة Markdown أو رموز استشهاد داخل النص؛ ستعرض الواجهة المصادر بصورة منفصلة.
 - لا تدّعِ مخزون مورد أو هامش ربح أو امتثالاً لم تثبته المصادر.
 - لا توصِ بإطلاق إعلان مدفوع قبل التحقق من المورد والعينة والسلامة.
 - لا تنفذ أي تغيير في Shopify.

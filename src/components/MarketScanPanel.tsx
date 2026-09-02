@@ -71,6 +71,132 @@ function wait(milliseconds: number) {
     });
 }
 
+function cleanResearchText(
+    value: string
+) {
+    return value
+        .replace(
+            /\s*\(\[[^\]]+\]\\?\([^)]*\\?\)\)/g,
+            ""
+        )
+        .trim();
+}
+
+function cleanStoredScan(
+    scan: MarketScan
+): MarketScan {
+    const blockedDomains = [
+        "reddit.com",
+        "wikipedia.org",
+    ];
+
+    const citations = scan.citations
+        .filter(citation => {
+            try {
+                const hostname = new URL(
+                    citation.url
+                )
+                    .hostname
+                    .replace(/^www\./, "");
+
+                return !blockedDomains.some(
+                    domain =>
+                        hostname === domain ||
+                        hostname.endsWith(
+                            `.${domain}`
+                        )
+                );
+            } catch {
+                return false;
+            }
+        })
+        .slice(0, 12);
+
+    return {
+        ...scan,
+        sourceCount: citations.length,
+        citations,
+        result: {
+            ...scan.result,
+            summary: cleanResearchText(
+                scan.result.summary
+            ),
+            marketSignals:
+                scan.result.marketSignals.map(
+                    signal => ({
+                        signal:
+                            cleanResearchText(
+                                signal.signal
+                            ),
+                        evidence:
+                            cleanResearchText(
+                                signal.evidence
+                            ),
+                        implication:
+                            cleanResearchText(
+                                signal.implication
+                            ),
+                    })
+                ),
+            candidates:
+                scan.result.candidates.map(
+                    candidate => ({
+                        ...candidate,
+                        name: cleanResearchText(
+                            candidate.name
+                        ),
+                        concept:
+                            cleanResearchText(
+                                candidate.concept
+                            ),
+                        ageRange:
+                            cleanResearchText(
+                                candidate.ageRange
+                            ),
+                        trendEvidence:
+                            cleanResearchText(
+                                candidate.trendEvidence
+                            ),
+                        whyFit:
+                            cleanResearchText(
+                                candidate.whyFit
+                            ),
+                        differentiation:
+                            cleanResearchText(
+                                candidate.differentiation
+                            ),
+                        sourcingRequirements:
+                            candidate.sourcingRequirements.map(
+                                cleanResearchText
+                            ),
+                        risks:
+                            candidate.risks.map(
+                                cleanResearchText
+                            ),
+                    })
+                ),
+            avoid: scan.result.avoid.map(
+                item => ({
+                    productConcept:
+                        cleanResearchText(
+                            item.productConcept
+                        ),
+                    reason:
+                        cleanResearchText(
+                            item.reason
+                        ),
+                })
+            ),
+            nextStep: cleanResearchText(
+                scan.result.nextStep
+            ),
+            disclaimer: cleanResearchText(
+                scan.result.disclaimer
+            ),
+        },
+    };
+}
+
 const confidenceStyle: Record<
     MarketConfidence,
     {
@@ -309,8 +435,11 @@ export default function MarketScanPanel({
 
                 if (!cancelled) {
                     setScan(
-                        data.scans?.[0] ||
-                            null
+                        data.scans?.[0]
+                            ? cleanStoredScan(
+                                  data.scans[0]
+                              )
+                            : null
                     );
                 }
             } catch (error) {
@@ -374,7 +503,9 @@ export default function MarketScanPanel({
                 );
             }
 
-            setScan(data.scan);
+            setScan(
+                cleanStoredScan(data.scan)
+            );
             setMessage(
                 "Market Scan completed and saved."
             );
@@ -413,7 +544,11 @@ export default function MarketScanPanel({
                 response.status === 429 &&
                 data.scan
             ) {
-                setScan(data.scan);
+                setScan(
+                    cleanStoredScan(
+                        data.scan
+                    )
+                );
 
                 const hours = Math.max(
                     1,
