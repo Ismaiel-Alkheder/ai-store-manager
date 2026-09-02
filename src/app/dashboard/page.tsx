@@ -9,6 +9,7 @@ import {
 import AdminAccountControls from "@/components/AdminAccountControls";
 import CatalogAuditPanel from "@/components/CatalogAuditPanel";
 import InventoryAlertsPanel from "@/components/InventoryAlertsPanel";
+import MarketScanPanel from "@/components/MarketScanPanel";
 
 type ProductVariant = {
     id?: string;
@@ -1563,6 +1564,10 @@ export default function DashboardPage() {
             )}
 
             <CatalogAuditPanel
+                products={products}
+            />
+
+            <MarketScanPanel
                 products={products}
             />
 

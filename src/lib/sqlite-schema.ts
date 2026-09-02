@@ -195,6 +195,24 @@ export function initializeSqliteSchema(
   `);
 
     /*
+      MARKET SCANS
+
+      Structured research results and their public
+      source links are stored without changing Shopify.
+    */
+
+    db.exec(`
+    CREATE TABLE IF NOT EXISTS market_scans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      result_json TEXT NOT NULL,
+      citations_json TEXT NOT NULL,
+      model TEXT NOT NULL,
+      source_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+    /*
       INDEXES
     */
 
@@ -247,6 +265,12 @@ export function initializeSqliteSchema(
     CREATE INDEX IF NOT EXISTS
     idx_ai_reports_created_at
     ON ai_reports(created_at)
+  `);
+
+    db.exec(`
+    CREATE INDEX IF NOT EXISTS
+    idx_market_scans_created_at
+    ON market_scans(created_at)
   `);
 
     /*
