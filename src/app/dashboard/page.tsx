@@ -7,18 +7,28 @@ import {
 } from "react";
 
 import AdminAccountControls from "@/components/AdminAccountControls";
+import CatalogAuditPanel from "@/components/CatalogAuditPanel";
 import InventoryAlertsPanel from "@/components/InventoryAlertsPanel";
 
 type ProductVariant = {
     id?: string;
     title?: string;
+    sku?: string | null;
     price: string;
+    compareAtPrice?: string | null;
     inventoryQuantity: number;
+    inventoryPolicy?: string;
 };
 
 type Product = {
     id: string;
     title: string;
+    vendor?: string;
+    productType?: string;
+    tags?: string[];
+    totalInventory?: number;
+    tracksInventory?: boolean;
+    description?: string;
     variants: {
         nodes: ProductVariant[];
     };
@@ -1551,6 +1561,10 @@ export default function DashboardPage() {
                     Analytics unavailable.
                 </p>
             )}
+
+            <CatalogAuditPanel
+                products={products}
+            />
 
             {/* AI STORE REPORT */}
 
