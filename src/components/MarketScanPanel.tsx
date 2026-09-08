@@ -53,10 +53,9 @@ async function readApiResponse(
             .slice(0, 160);
 
         throw new Error(
-            `The server returned a temporary non-JSON response (HTTP ${response.status})${
-                detail
-                    ? `: ${detail}`
-                    : "."
+            `The server returned a temporary non-JSON response (HTTP ${response.status})${detail
+                ? `: ${detail}`
+                : "."
             }`
         );
     }
@@ -227,7 +226,7 @@ function CandidateCard({
 }) {
     const confidence =
         confidenceStyle[
-            candidate.confidence
+        candidate.confidence
         ];
 
     return (
@@ -429,7 +428,7 @@ export default function MarketScanPanel({
                 if (!response.ok) {
                     throw new Error(
                         data.error ||
-                            `Market Scan history returned HTTP ${response.status}`
+                        `Market Scan history returned HTTP ${response.status}`
                     );
                 }
 
@@ -437,8 +436,8 @@ export default function MarketScanPanel({
                     setScan(
                         data.scans?.[0]
                             ? cleanStoredScan(
-                                  data.scans[0]
-                              )
+                                data.scans[0]
+                            )
                             : null
                     );
                 }
@@ -499,7 +498,7 @@ export default function MarketScanPanel({
             if (!response.ok || !data.scan) {
                 throw new Error(
                     data.error ||
-                        `Market Scan status returned HTTP ${response.status}`
+                    `Market Scan status returned HTTP ${response.status}`
                 );
             }
 
@@ -555,14 +554,13 @@ export default function MarketScanPanel({
                     Math.ceil(
                         Number(
                             data.retryAfterSeconds ||
-                                0
+                            0
                         ) / 3600
                     )
                 );
 
                 setMessage(
-                    `A current scan is already saved. A new scan will be available in about ${hours} hour${
-                        hours === 1 ? "" : "s"
+                    `A current scan is already saved. A new scan will be available in about ${hours} hour${hours === 1 ? "" : "s"
                     }.`
                 );
                 return;
@@ -584,7 +582,7 @@ export default function MarketScanPanel({
             if (!response.ok) {
                 throw new Error(
                     data.error ||
-                        `Market Scan returned HTTP ${response.status}`
+                    `Market Scan returned HTTP ${response.status}`
                 );
             }
 
@@ -669,25 +667,20 @@ export default function MarketScanPanel({
                 <button
                     type="button"
                     onClick={runMarketScan}
-                    disabled={
-                        loading ||
-                        products.length === 0
-                    }
+                    disabled={loading}
                     aria-busy={loading}
                     style={{
                         padding: "12px 18px",
                         border: "none",
                         borderRadius: "11px",
                         background:
-                            loading ||
-                            products.length === 0
+                            loading
                                 ? "#94a3b8"
                                 : "#0891b2",
                         color: "#ffffff",
                         fontWeight: 800,
                         cursor:
-                            loading ||
-                            products.length === 0
+                            loading
                                 ? "not-allowed"
                                 : "pointer",
                     }}
@@ -836,7 +829,7 @@ export default function MarketScanPanel({
                                 مفاهيم يجب تجنبها الآن
                             </strong>
                             {scan.result.avoid.length ===
-                            0 ? (
+                                0 ? (
                                 <p>
                                     لا توجد إضافات في هذه
                                     الجولة.
