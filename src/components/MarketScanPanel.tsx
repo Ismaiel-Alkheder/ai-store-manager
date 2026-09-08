@@ -646,7 +646,7 @@ export default function MarketScanPanel({
                             margin: "6px 0 7px",
                         }}
                     >
-                        Future Builders Market Scan
+                        Qubelyra Market Scan
                     </h2>
                     <p
                         style={{

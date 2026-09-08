@@ -230,7 +230,7 @@ function collectCitations(
                 ) {
                     if (
                         annotation.type ===
-                            "url_citation" &&
+                        "url_citation" &&
                         validHttpUrl(
                             annotation.url
                         )
@@ -249,7 +249,7 @@ function collectCitations(
 
         if (
             item.type ===
-                "web_search_call" &&
+            "web_search_call" &&
             item.action.type === "search"
         ) {
             for (
@@ -324,7 +324,7 @@ function isMarketScanResult(
 
     return (
         typeof result.summary ===
-            "string" &&
+        "string" &&
         Array.isArray(
             result.marketSignals
         ) &&
@@ -332,9 +332,9 @@ function isMarketScanResult(
         result.candidates.length === 3 &&
         Array.isArray(result.avoid) &&
         typeof result.nextStep ===
-            "string" &&
+        "string" &&
         typeof result.disclaimer ===
-            "string"
+        "string"
     );
 }
 
@@ -347,10 +347,9 @@ function completeMarketScan(
                 ?.reason;
 
         throw new Error(
-            `Market Scan response stopped before completion${
-                reason
-                    ? ` (${reason})`
-                    : ""
+            `Market Scan response stopped before completion${reason
+                ? ` (${reason})`
+                : ""
             }.`
         );
     }
@@ -361,7 +360,7 @@ function completeMarketScan(
     ) {
         throw new Error(
             response.error?.message ||
-                `Market Scan ended with status ${response.status}.`
+            `Market Scan ended with status ${response.status}.`
         );
     }
 
@@ -568,7 +567,7 @@ export async function POST(
                 Number.isFinite(elapsed) &&
                 elapsed >= 0 &&
                 elapsed <
-                    COOLDOWN_MILLISECONDS
+                COOLDOWN_MILLISECONDS
             ) {
                 return NextResponse.json(
                     {
@@ -579,7 +578,7 @@ export async function POST(
                             Math.ceil(
                                 (COOLDOWN_MILLISECONDS -
                                     elapsed) /
-                                    1000
+                                1000
                             ),
                         scan: latestScan,
                     },
@@ -633,7 +632,7 @@ export async function POST(
                             inventoryQuantity:
                                 Number(
                                     variant.inventoryQuantity ||
-                                        0
+                                    0
                                 ),
                         })) || [],
             }));
@@ -673,14 +672,14 @@ export async function POST(
                     verbosity: "low",
                     format: {
                         type: "json_schema",
-                        name: "future_builders_market_scan",
+                        name: "qubelyra_builders_market_scan",
                         strict: true,
                         schema:
                             marketScanSchema,
                     },
                 },
                 instructions: `
-أنت باحث سوق لمتجر Future Builders المتخصص في الأدوات والألعاب التعليمية الذكية للأطفال.
+أنت باحث سوق لمتجر Qubelyra المتخصص في الأدوات والألعاب التعليمية الذكية للأطفال.
 
 استخدم البحث الحي على الويب لدراسة السوق الأمريكي الحالي. أعد النتيجة بالعربية، مع إبقاء أسماء فئات المنتجات واضحة وقابلة للبحث بالإنجليزية عند الحاجة.
 
@@ -707,14 +706,14 @@ export async function POST(
 - لا تنفذ أي تغيير في Shopify.
                 `,
                 input: `
-ابحث عن فرص منتجات حالية تلائم استراتيجية Future Builders، ثم اقترح ثلاثة مرشحين فقط مرتبين حسب قوة الملاءمة.
+ابحث عن فرص منتجات حالية تلائم استراتيجية Qubelyra، ثم اقترح ثلاثة مرشحين فقط مرتبين حسب قوة الملاءمة.
 
 هذا هو الكتالوج الحالي لتجنب التكرار:
 ${JSON.stringify(
-    currentCatalog,
-    null,
-    2
-)}
+                    currentCatalog,
+                    null,
+                    2
+                )}
                 `,
             });
 
